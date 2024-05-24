@@ -16,11 +16,15 @@ def RCTraining(ArmModel: PlanarArms,
                learn_delta: int = 10,
                noise: float = 0.0):
 
-    folder = "trajectories/"
+    inputs = []
+    targets = []
+
     if arm is None:
         arm = np.random.choice(['left', 'right'])
 
+    folder = "trajectories/"
     # Training
+    print("Motor babbling")
     for trial in range(N_trials):
 
         ArmModel.move_randomly(arm=arm,
@@ -39,13 +43,18 @@ def RCTraining(ArmModel: PlanarArms,
         input_gradient += noise * np.random.uniform(-1, 1, size=len(input_gradient))
         target_gradient += noise * np.random.uniform(-1, 1, size=len(target_gradient))
 
-        # train reservoir based on input and target
-        ReservoirModel.train(data_in=input_gradient[:-learn_delta], data_target=target_gradient[learn_delta:])
+        inputs += input_gradient[:-learn_delta]
+        targets += target_gradient[learn_delta:]
 
         # reset trajectories
         ArmModel.clear()
 
+    # train reservoir based on input and target
+    print("Train Reservoir")
+    ReservoirModel.train_target(data_in=np.array(inputs), data_target=np.array(targets))
+
     # Testing
+    print("Test Reservoir")
     ArmModel.move_randomly(t_min=min_movement_time, t_max=max_movement_time, t_wait=learn_delta+1)
 
     if arm == 'right':
@@ -55,6 +64,8 @@ def RCTraining(ArmModel: PlanarArms,
         input_gradient = ArmModel.gradient_end_effector_left
         target_gradient = ArmModel.gradient_end_effector_left
 
-    ReservoirModel.predict(steps=)
+    # ReservoirModel.advance_r_state(input_gradient[0])
+    prediction = ReservoirModel.predict(steps=len(target_gradient[learn_delta:]))
+    ArmModel.plot_trajectory(points=prediction)
 
     return ReservoirModel

@@ -50,19 +50,18 @@ class RCNetwork:
     def v(self):
         return np.dot(self.W_out, self.r_state)
 
-    def train(self, data_in: np.ndarray, data_target: np.ndarray):
+    def train_target(self, data_in: np.ndarray, data_target: np.ndarray):
         # trajectory has shape (n, dim_system), n is the number of timesteps
         R = np.zeros((self.dim_reservoir, data_in.shape[0]))
         for i in range(data_in.shape[0]):
+            self.advance_r_state(data_in[i])
             R[:, i] = self.r_state
-            u = data_in[i]
-            self.advance_r_state(u)
+
         self.W_out = linear_regression(R, data_target)
 
-    def predict(self, steps):
-        prediction = np.zeros((steps, self.dim_system))
-        for i in range(steps):
-            v = self.v()
-            prediction[i] = v
-            self.advance_r_state(prediction[i])
+    def predict_target(self, data_in: np.ndarray):
+        prediction = np.zeros((data_in.shape[0], self.dim_system))
+        for i in range(data_in.shape[0]):
+            self.advance_r_state(data_in[i])
+            prediction[i] = self.v()
         return prediction
