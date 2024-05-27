@@ -34,7 +34,7 @@ def linear_regression(R, trajectory, beta=0.0001):
 
 
 class RCNetwork:
-    def __init__(self, dim_system, dim_reservoir, rho, sigma, density):
+    def __init__(self, dim_system, dim_reservoir, rho: float = 1.1, sigma: float = 0.1):
         self.dim_system = dim_system
         self.dim_reservoir = dim_reservoir
         self.r_state = np.zeros(dim_reservoir)

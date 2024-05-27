@@ -1,5 +1,6 @@
 import os.path
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from kinematics.planar_arms import PlanarArms
@@ -14,10 +15,8 @@ def RCTraining(ArmModel: PlanarArms,
                min_movement_time: int = 50,
                max_movement_time: int = 250,
                learn_delta: int = 10,
-               noise: float = 0.0):
-
-    inputs = []
-    targets = []
+               noise: float = 0.0,
+               do_plot: bool = False):
 
     if arm is None:
         arm = np.random.choice(['left', 'right'])
@@ -40,11 +39,16 @@ def RCTraining(ArmModel: PlanarArms,
             input_gradient = ArmModel.gradient_end_effector_left
             target_gradient = ArmModel.gradient_end_effector_left
 
-        input_gradient += noise * np.random.uniform(-1, 1, size=len(input_gradient))
-        target_gradient += noise * np.random.uniform(-1, 1, size=len(target_gradient))
+        if noise > 0.0:
+            input_gradient += noise * np.random.uniform(-1, 1, size=np.array(input_gradient).shape)
+            target_gradient += noise * np.random.uniform(-1, 1, size=np.array(target_gradient).shape)
 
-        inputs += input_gradient[:-learn_delta]
-        targets += target_gradient[learn_delta:]
+        if trial == 0:
+            inputs = input_gradient[:-learn_delta]
+            targets = target_gradient[learn_delta:]
+        else:
+            inputs += input_gradient[:-learn_delta]
+            targets += target_gradient[learn_delta:]
 
         # reset trajectories
         ArmModel.clear()
@@ -61,11 +65,37 @@ def RCTraining(ArmModel: PlanarArms,
         input_gradient = ArmModel.trajectory_gradient_right
         target_gradient = ArmModel.gradient_end_effector_right
     else:
-        input_gradient = ArmModel.gradient_end_effector_left
+        input_gradient = ArmModel.trajectory_gradient_left
         target_gradient = ArmModel.gradient_end_effector_left
 
     # ReservoirModel.advance_r_state(input_gradient[0])
-    prediction = ReservoirModel.predict(steps=len(target_gradient[learn_delta:]))
-    ArmModel.plot_trajectory(points=prediction)
+    prediction = ReservoirModel.predict_target(data_in=input_gradient)
+
+    if do_plot:
+        if arm == ' right':
+            ArmModel.plot_trajectory(points=prediction + ArmModel.end_effector_right)
+        else:
+            ArmModel.plot_trajectory(points=prediction + ArmModel.end_effector_left)
+
+        fig, ax = plt.subplots()
+        ax.plot(prediction, color='r')
+        ax.plot(target_gradient[target_gradient:])
+        plt.show()
+        plt.close(fig)
 
     return ReservoirModel
+
+if __name__ == '__main__':
+
+    moving_arm = 'right'
+    N_trials = 1_000
+
+    arms = PlanarArms(init_angles_left=np.array((20, 20)), init_angles_right=np.array((20, 20)), radians=False)
+    reservoir = RCNetwork(dim_system=2, dim_reservoir=500)
+
+    # run training
+    RCTraining(ArmModel=arms,
+               ReservoirModel=reservoir,
+               N_trials=N_trials,
+               arm=moving_arm,
+               do_plot=True)
