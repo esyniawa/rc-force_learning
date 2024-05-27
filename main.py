@@ -40,8 +40,9 @@ def RCTraining(ArmModel: PlanarArms,
             target_gradient = ArmModel.gradient_end_effector_left
 
         if noise > 0.0:
-            input_gradient += noise * np.random.uniform(-1, 1, size=np.array(input_gradient).shape)
-            target_gradient += noise * np.random.uniform(-1, 1, size=np.array(target_gradient).shape)
+            for i in range(len(input_gradient)):
+                input_gradient[i] += noise * np.random.uniform(-1, 1, size=2)
+                target_gradient[i] += noise * np.random.uniform(-1, 1, size=2)
 
         if trial == 0:
             inputs = input_gradient[:-learn_delta]
@@ -59,7 +60,7 @@ def RCTraining(ArmModel: PlanarArms,
 
     # Testing
     print("Test Reservoir")
-    ArmModel.move_randomly(t_min=min_movement_time, t_max=max_movement_time, t_wait=learn_delta+1)
+    ArmModel.move_randomly(arm=arm, t_min=min_movement_time, t_max=max_movement_time, t_wait=learn_delta+1)
 
     if arm == 'right':
         input_gradient = ArmModel.trajectory_gradient_right
@@ -69,33 +70,35 @@ def RCTraining(ArmModel: PlanarArms,
         target_gradient = ArmModel.gradient_end_effector_left
 
     # ReservoirModel.advance_r_state(input_gradient[0])
-    prediction = ReservoirModel.predict_target(data_in=input_gradient)
+    prediction = ReservoirModel.predict_target(data_in=np.array(input_gradient))
 
     if do_plot:
         if arm == ' right':
-            ArmModel.plot_trajectory(points=prediction + ArmModel.end_effector_right)
+            ArmModel.plot_trajectory(points=prediction + np.array(ArmModel.end_effector_right))
         else:
-            ArmModel.plot_trajectory(points=prediction + ArmModel.end_effector_left)
+            ArmModel.plot_trajectory(points=prediction + np.array(ArmModel.end_effector_left))
 
         fig, ax = plt.subplots()
         ax.plot(prediction, color='r')
-        ax.plot(target_gradient[target_gradient:])
+        ax.plot(target_gradient[learn_delta:])
         plt.show()
         plt.close(fig)
 
     return ReservoirModel
 
+
 if __name__ == '__main__':
 
     moving_arm = 'right'
-    N_trials = 1_000
+    N_trials = 10_000
 
     arms = PlanarArms(init_angles_left=np.array((20, 20)), init_angles_right=np.array((20, 20)), radians=False)
-    reservoir = RCNetwork(dim_system=2, dim_reservoir=500)
+    reservoir = RCNetwork(dim_system=2, dim_reservoir=1000)
 
     # run training
     RCTraining(ArmModel=arms,
                ReservoirModel=reservoir,
                N_trials=N_trials,
+               noise=0.01,
                arm=moving_arm,
                do_plot=True)
