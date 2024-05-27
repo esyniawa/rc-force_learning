@@ -70,7 +70,7 @@ def RCTraining(ArmModel: PlanarArms,
         target_gradient = ArmModel.gradient_end_effector_left
 
     # ReservoirModel.advance_r_state(input_gradient[0])
-    prediction = ReservoirModel.predict_target(data_in=np.array(input_gradient))
+    prediction = ReservoirModel.predict_target(data_in=np.array(input_gradient[:-learn_delta]))
 
     if do_plot:
         if arm == ' right':
@@ -83,6 +83,9 @@ def RCTraining(ArmModel: PlanarArms,
         ax.plot(target_gradient[learn_delta:])
         plt.show()
         plt.close(fig)
+    else:
+        mse = ((target_gradient[:-learn_delta] - prediction[learn_delta:]) ** 2).mean(axis=0)
+        print(f'Test MSE = {mse:.4f}')
 
     return ReservoirModel
 
@@ -101,4 +104,4 @@ if __name__ == '__main__':
                N_trials=N_trials,
                noise=0.01,
                arm=moving_arm,
-               do_plot=True)
+               do_plot=False)
