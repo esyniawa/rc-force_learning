@@ -1,4 +1,5 @@
 import os.path
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,22 +7,24 @@ import numpy as np
 from kinematics.planar_arms import PlanarArms
 
 from network.reservoir import RCNetwork
+from utils import cumulative_sum, safe_save
 
 
 def RCTraining(ArmModel: PlanarArms,
                ReservoirModel: RCNetwork,
                N_trials: int,
+               simID: int,
                arm: str | None,
                min_movement_time: int = 50,
                max_movement_time: int = 250,
-               learn_delta: int = 10,
+               learn_delta: int = 5,
                noise: float = 0.0,
                do_plot: bool = False):
 
     if arm is None:
         arm = np.random.choice(['left', 'right'])
 
-    folder = "trajectories/"
+    trajectory_folder = "trajectories/"
     # Training
     print("Motor babbling")
     for trial in range(N_trials):
@@ -30,7 +33,7 @@ def RCTraining(ArmModel: PlanarArms,
                                t_min=min_movement_time,
                                t_max=max_movement_time,
                                t_wait=learn_delta+1,
-                               trajectory_save_name=folder + f"run_{trial}")
+                               trajectory_save_name=trajectory_folder + f"sim_{simID}/run_{trial}")
 
         if arm == 'right':
             input_gradient = ArmModel.trajectory_gradient_right
@@ -84,16 +87,24 @@ def RCTraining(ArmModel: PlanarArms,
         plt.show()
         plt.close(fig)
     else:
-        mse = ((target_gradient[:-learn_delta] - prediction[learn_delta:]) ** 2).mean(axis=0)
+        mse = ((target_gradient[:-learn_delta] - prediction) ** 2).mean()
         print(f'Test MSE = {mse:.4f}')
+
+        # save
+        results_folder = "results/"
+
+        safe_save(results_folder + f"sim_{simID}/mse.npy", mse)
+        safe_save(results_folder + f"sim_{simID}/w_in.npy", reservoir.W_in)
+        safe_save(results_folder + f"sim_{simID}/w_out.npy", reservoir.W_out)
+        safe_save(results_folder + f"sim_{simID}/w_rec.npy", reservoir.A)
 
     return ReservoirModel
 
 
 if __name__ == '__main__':
 
+    simID, N_trials = int(sys.argv[1]), int(sys.argv[2])
     moving_arm = 'right'
-    N_trials = 10_000
 
     arms = PlanarArms(init_angles_left=np.array((20, 20)), init_angles_right=np.array((20, 20)), radians=False)
     reservoir = RCNetwork(dim_system=2, dim_reservoir=1000)
@@ -102,6 +113,7 @@ if __name__ == '__main__':
     RCTraining(ArmModel=arms,
                ReservoirModel=reservoir,
                N_trials=N_trials,
+               simID=simID,
                noise=0.01,
                arm=moving_arm,
                do_plot=False)
