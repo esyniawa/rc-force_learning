@@ -36,30 +36,29 @@ def RCTraining(ArmModel: PlanarArms,
                                trajectory_save_name=trajectory_folder + f"sim_{simID}/run_{trial}")
 
         if arm == 'right':
-            input_gradient = ArmModel.trajectory_gradient_right
-            target_gradient = ArmModel.gradient_end_effector_right
+            input_gradient = np.array(ArmModel.trajectory_gradient_right)
+            target_gradient = np.array(ArmModel.gradient_end_effector_right)
         else:
-            input_gradient = ArmModel.gradient_end_effector_left
-            target_gradient = ArmModel.gradient_end_effector_left
+            input_gradient = np.array(ArmModel.gradient_end_effector_left)
+            target_gradient = np.array(ArmModel.gradient_end_effector_left)
 
         if noise > 0.0:
-            for i in range(len(input_gradient)):
-                input_gradient[i] += noise * np.random.uniform(-1, 1, size=2)
-                target_gradient[i] += noise * np.random.uniform(-1, 1, size=2)
+            input_gradient += noise * np.random.uniform(-1, 1, size=input_gradient.shape)
+            target_gradient += noise * np.random.uniform(-1, 1, size=target_gradient.shape)
 
         if trial == 0:
-            inputs = input_gradient[:-learn_delta]
-            targets = target_gradient[learn_delta:]
+            inputs = input_gradient[:-learn_delta+1]
+            targets = cumulative_sum(target_gradient, n=learn_delta, axis=1)
         else:
-            inputs += input_gradient[:-learn_delta]
-            targets += target_gradient[learn_delta:]
+            inputs = np.concatenate((inputs, input_gradient[:-learn_delta+1]), axis=0)
+            targets = np.concatenate((targets, cumulative_sum(target_gradient, n=learn_delta, axis=1)), axis=0)
 
         # reset trajectories
         ArmModel.clear()
 
     # train reservoir based on input and target
     print("Train Reservoir")
-    ReservoirModel.train_target(data_in=np.array(inputs), data_target=np.array(targets))
+    ReservoirModel.train_target(data_in=inputs, data_target=targets)
 
     # Testing
     print("Test Reservoir")

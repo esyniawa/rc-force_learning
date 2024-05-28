@@ -20,7 +20,15 @@ def safe_save(save_name: str, array: np.ndarray) -> None:
         np.save(save_name + '.npy', array)
 
 
-def cumulative_sum(a: np.ndarray, n: int) -> np.ndarray:
-    ret = np.cumsum(a, dtype=float)
+def cumulative_sum(a: np.ndarray, n: int, axis: int | None = None) -> np.ndarray:
+    """
+    Sums an array a over a given interval n. Mathematically equivalent to a convolution with a rectangular function
+    of width n.
+    :param a: array
+    :param n: interval width
+    :param axis:
+    :return:
+    """
+    ret = np.cumsum(a, axis=axis, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n-1:]
