@@ -72,21 +72,25 @@ def RCTraining(ArmModel: PlanarArms,
         target_gradient = ArmModel.gradient_end_effector_left
 
     # ReservoirModel.advance_r_state(input_gradient[0])
-    prediction = ReservoirModel.predict_target(data_in=np.array(input_gradient))
+    prediction = ReservoirModel.predict_target(data_in=np.array(input_gradient)[:-learn_delta+1])
     target_test = cumulative_sum(np.array(target_gradient), n=learn_delta, axis=1)
 
     mse = ((target_test - prediction) ** 2).mean()
 
     results_folder = "results/"
     if do_plot:
-
-        traj_prediction = np.concatenate((prediction,
-                                          np.zeros((len(ArmModel.end_effector_right) - prediction.shape[0], 2))),
-                                         axis=0)
         if arm == 'right':
+            traj_prediction = np.concatenate((prediction,
+                                              np.zeros((len(ArmModel.end_effector_right) - prediction.shape[0], 2))),
+                                             axis=0)
+
             ArmModel.plot_trajectory(dynamic_points=traj_prediction + np.array(ArmModel.end_effector_right),
                                      save_name=results_folder + f"sim_{simID}/prediction_trajectory.gif")
         else:
+            traj_prediction = np.concatenate((prediction,
+                                              np.zeros((len(ArmModel.end_effector_left) - prediction.shape[0], 2))),
+                                             axis=0)
+
             ArmModel.plot_trajectory(dynamic_points=traj_prediction + np.array(ArmModel.end_effector_left),
                                      save_name=results_folder + f"sim_{simID}/prediction_trajectory.gif")
 
