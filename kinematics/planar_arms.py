@@ -663,6 +663,12 @@ class PlanarArms:
             ani.save(save_name, writer=writer)
             plt.close(fig)
 
+    def calc_gradients(self, arm: str, delta_t: int) -> np.ndarray:
+        if arm == 'right':
+            return np.array(self.end_effector_right[delta_t:]) - np.array(self.end_effector_right[:-delta_t])
+        else:
+            return np.array(self.end_effector_left[delta_t:]) - np.array(self.end_effector_left[:-delta_t])
+
     @staticmethod
     def calc_motor_vector(init_pos: np.ndarray[float, float], end_pos: np.ndarray[float, float],
                           arm: str, input_theta: bool = False, theta_radians: bool = False):
