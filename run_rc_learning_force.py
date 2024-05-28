@@ -44,14 +44,13 @@ def RCTraining(ArmModel: PlanarArms,
 
         if noise > 0.0:
             input_gradient += noise * np.random.uniform(-1, 1, size=input_gradient.shape)
-            target_gradient += noise * np.random.uniform(-1, 1, size=target_gradient.shape)
 
         if trial == 0:
-            inputs = input_gradient[:-learn_delta+1]
-            targets = cumulative_sum(target_gradient, n=learn_delta, axis=1)
+            inputs = input_gradient[:-learn_delta]
+            targets = target_gradient[learn_delta:]
         else:
-            inputs = np.concatenate((inputs, input_gradient[:-learn_delta+1]), axis=0)
-            targets = np.concatenate((targets, cumulative_sum(target_gradient, n=learn_delta, axis=1)), axis=0)
+            inputs = np.concatenate((inputs, input_gradient[:-learn_delta]), axis=0)
+            targets = np.concatenate((targets, target_gradient[learn_delta:]), axis=0)
 
         # reset trajectories
         ArmModel.clear()
@@ -72,8 +71,8 @@ def RCTraining(ArmModel: PlanarArms,
         target_gradient = ArmModel.gradient_end_effector_left
 
     # ReservoirModel.advance_r_state(input_gradient[0])
-    prediction = ReservoirModel.predict_target(data_in=np.array(input_gradient)[:-learn_delta+1])
-    target_test = cumulative_sum(np.array(target_gradient), n=learn_delta, axis=1)
+    prediction = ReservoirModel.predict_target(data_in=np.array(input_gradient)[:-learn_delta])
+    target_test = target_gradient[learn_delta:]
 
     mse = ((target_test - prediction) ** 2).mean()
 
