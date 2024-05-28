@@ -72,26 +72,34 @@ def RCTraining(ArmModel: PlanarArms,
         target_gradient = ArmModel.gradient_end_effector_left
 
     # ReservoirModel.advance_r_state(input_gradient[0])
-    prediction = ReservoirModel.predict_target(data_in=np.array(input_gradient[:-learn_delta]))
+    prediction = ReservoirModel.predict_target(data_in=np.array(input_gradient))
+    target_test = cumulative_sum(np.array(target_gradient), n=learn_delta, axis=1)
 
+    mse = ((target_test - prediction) ** 2).mean()
+
+    results_folder = "results/"
     if do_plot:
-        if arm == ' right':
-            ArmModel.plot_trajectory(points=prediction + np.array(ArmModel.end_effector_right))
+
+        traj_prediction = np.concatenate((prediction,
+                                          np.zeros((len(ArmModel.end_effector_right) - prediction.shape[0], 2))),
+                                         axis=0)
+        if arm == 'right':
+            ArmModel.plot_trajectory(dynamic_points=traj_prediction + np.array(ArmModel.end_effector_right),
+                                     save_name=results_folder + f"sim_{simID}/prediction_trajectory.gif")
         else:
-            ArmModel.plot_trajectory(points=prediction + np.array(ArmModel.end_effector_left))
+            ArmModel.plot_trajectory(dynamic_points=traj_prediction + np.array(ArmModel.end_effector_left),
+                                     save_name=results_folder + f"sim_{simID}/prediction_trajectory.gif")
 
         fig, ax = plt.subplots()
         ax.plot(prediction, color='r')
-        ax.plot(target_gradient[learn_delta:])
-        plt.show()
+        ax.plot(target_test, color='b')
+        plt.savefig(results_folder + f"sim_{simID}/prediction_target.png")
         plt.close(fig)
+
     else:
-        mse = ((target_gradient[:-learn_delta] - prediction) ** 2).mean()
         print(f'Test MSE = {mse:.4f}')
 
         # save
-        results_folder = "results/"
-
         safe_save(results_folder + f"sim_{simID}/mse.npy", mse)
         safe_save(results_folder + f"sim_{simID}/w_in.npy", reservoir.W_in)
         safe_save(results_folder + f"sim_{simID}/w_out.npy", reservoir.W_out)
@@ -115,4 +123,4 @@ if __name__ == '__main__':
                simID=simID,
                noise=0.01,
                arm=moving_arm,
-               do_plot=False)
+               do_plot=True)

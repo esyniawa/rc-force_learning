@@ -557,8 +557,9 @@ class PlanarArms:
 
     def plot_trajectory(self, fig_size=(12, 8),
                         points: list | tuple | None = None,
+                        dynamic_points: list | tuple | np.ndarray | None = None,
                         save_name: str = None,
-                        frames_per_sec: int = None,
+                        frames_per_sec: int = 10,
                         turn_off_axis: bool = False):
         """
         Visualizes the movements performed so far. Use the slider to set the time.
@@ -607,8 +608,17 @@ class PlanarArms:
             for point in points:
                 ax.scatter(point[0], point[1], marker='+')
 
-        val_max = num_t - 1
+        if dynamic_points is not None:
+            if isinstance(dynamic_points, tuple | list):
+                dynamic_points = np.array(dynamic_points)
 
+            if dynamic_points.shape[0] < num_t:
+                offset = num_t - dynamic_points.shape[0]
+                dynamic_points = np.concatenate((dynamic_points, np.zeros((offset, 2))), axis=0)
+
+            p = ax.scatter(dynamic_points[init_t, 0], dynamic_points[init_t, 1], marker='x', c='r')
+
+        val_max = num_t - 1
         if save_name is None:
 
             ax_slider = plt.axes((0.25, 0.05, 0.5, 0.03))
@@ -624,6 +634,9 @@ class PlanarArms:
                 t = int(time_slider.val)
                 l.set_data(coordinates_left[t][0, :], coordinates_left[t][1, :])
                 r.set_data(coordinates_right[t][0, :], coordinates_right[t][1, :])
+                if dynamic_points is not None:
+                    p.set_offsets(dynamic_points[t])
+
                 time_slider.valtext.set_text(t)
 
             time_slider.on_changed(update)
@@ -633,7 +646,8 @@ class PlanarArms:
             def animate(t):
                 l.set_data(coordinates_left[t][0, :], coordinates_left[t][1, :])
                 r.set_data(coordinates_right[t][0, :], coordinates_right[t][1, :])
-                return r, l
+                if dynamic_points is not None:
+                    p.set_offsets(dynamic_points[t])
 
             folder, _ = os.path.split(save_name)
             if folder and not os.path.exists(folder):
