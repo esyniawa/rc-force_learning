@@ -55,7 +55,7 @@ def RCTraining(ArmModel: PlanarArms,
 
     # train reservoir based on input and target
     print("Train Reservoir")
-    ReservoirModel.train_target(data_in=inputs, data_target=targets)
+    ReservoirModel.train_target_regression(data_in=inputs, data_target=targets)
 
     # Testing
     print("Test Reservoir")
@@ -102,7 +102,7 @@ def RCTraining(ArmModel: PlanarArms,
         safe_save(results_folder + f"sim_{simID}/mse.npy", mse)
         safe_save(results_folder + f"sim_{simID}/w_in.npy", reservoir.W_in)
         safe_save(results_folder + f"sim_{simID}/w_out.npy", reservoir.W_out)
-        safe_save(results_folder + f"sim_{simID}/w_rec.npy", reservoir.A)
+        safe_save(results_folder + f"sim_{simID}/w_rec.npy", reservoir.W_rec)
 
     return ReservoirModel
 
