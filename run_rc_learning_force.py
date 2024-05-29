@@ -55,7 +55,7 @@ def RCTraining(ArmModel: PlanarArms,
 
     # train reservoir based on input and target
     print("Train Reservoir")
-    ReservoirModel.train_target_regression(data_in=inputs, data_target=targets)
+    ReservoirModel.train_rls(data_in=inputs, data_target=targets)
 
     # Testing
     print("Test Reservoir")
@@ -67,7 +67,7 @@ def RCTraining(ArmModel: PlanarArms,
         input_gradient = ArmModel.trajectory_gradient_left
 
     # ReservoirModel.advance_r_state(input_gradient[0])
-    prediction = ReservoirModel.predict_target(data_in=np.array(input_gradient)[:-learn_delta])
+    prediction = ReservoirModel.predict(data_in=np.array(input_gradient)[:-learn_delta])
     target_test = ArmModel.calc_gradients(arm=arm, delta_t=learn_delta)
 
     mse = ((target_test - prediction) ** 2).mean()
@@ -113,13 +113,14 @@ if __name__ == '__main__':
     moving_arm = 'right'
 
     arms = PlanarArms(init_angles_left=np.array((20, 20)), init_angles_right=np.array((20, 20)), radians=False)
-    reservoir = RCNetwork(dim_system=2, dim_reservoir=1000)
+    reservoir = RCNetwork(dim_reservoir=1000,
+                          dim_in=2, dim_out=2)
 
     # run training
     RCTraining(ArmModel=arms,
                ReservoirModel=reservoir,
                N_trials=N_trials,
                simID=simID,
-               noise=0.01,
+               noise=0.0,
                arm=moving_arm,
                do_plot=True)

@@ -13,7 +13,7 @@ def generate_adjacency_matrix(dim_reservoir: int, rho: float, sigma: float):
     Generates a sparse adjacency matrix based on the Erdős–Rényi model
 
     :param dim_reservoir: The number of nodes
-    :param rho: Scaling recurrent nodes
+    :param rho: Scaling of recurrent nodes
     :param sigma: Probability for edge creation
     :return:
     """
@@ -31,8 +31,8 @@ def generate_adjacency_matrix(dim_reservoir: int, rho: float, sigma: float):
 
 def scale_matrix(W_rec: np.ndarray, rho: float):
     """
-    :param W_rec:
-    :param rho:
+    :param W_rec: Adjacency matrix
+    :param rho: Scaling of recurrent nodes
     :return:
     """
     eigenvalues, _ = np.linalg.eig(W_rec)
@@ -42,45 +42,78 @@ def scale_matrix(W_rec: np.ndarray, rho: float):
 
 
 class RCNetwork:
-    def __init__(self, dim_system, dim_reservoir, rho: float = 1.1, sigma: float = 0.1):
+    def __init__(self,
+                 dim_reservoir: int,
+                 dim_in: int,
+                 dim_out: int,
+                 alpha: float = 0.1,
+                 rho: float = 1.1,
+                 sigma: float = 0.1):
 
         # initialize reservoir
-        self.dim_system = dim_system
+        self.dim_out = dim_out
         self.dim_reservoir = dim_reservoir
 
         # initialize weights
         self.W_rec = generate_adjacency_matrix(dim_reservoir, rho, sigma)
-        self.W_in = 2 * sigma * (np.random.rand(dim_reservoir, dim_system) - .5)
-        self.W_out = np.zeros((dim_system, dim_reservoir))
+        self.W_in = 2 * sigma * (np.random.rand(dim_reservoir, dim_in) - .5)
+        self.W_out = np.zeros((dim_out, dim_reservoir))
 
-        # initialize "firing rate" in reservoir
-        self.r_state = np.zeros(dim_reservoir)
+        # "firing rates"
+        self.r_reservoir = np.zeros(dim_reservoir)
+        self.r_out = np.zeros(dim_out)
 
-    def advance_r_state(self, u):
-        self.r_state = sigmoid(np.dot(self.W_rec, self.r_state) + np.dot(self.W_in, u))
-        return self.r_state
+        self.P = np.eye(dim_reservoir) / alpha
 
-    def v(self):
-        return np.dot(self.W_out, self.r_state)
+    def advance_in(self, data_in: np.ndarray):
+        self.r_reservoir = sigmoid(np.dot(self.W_rec, self.r_reservoir) + np.dot(self.W_in, data_in))
+
+    def advance_out(self):
+        self.r_out = np.dot(self.W_out, self.r_reservoir)
+
+    def step(self, data_in: np.ndarray):
+        self.advance_in(data_in=data_in)
+        self.advance_out()
 
     @staticmethod
-    def _linear_regression(R, trajectory, beta=0.0001):
-        Rt = np.transpose(R)
-        inverse_part = np.linalg.inv(np.dot(R, Rt) + beta * np.identity(R.shape[0]))
-        return np.dot(np.dot(trajectory.T, Rt), inverse_part)
+    def _rls(P, r, error):
+        """
+        :param P: dim_reservoir x dim_reservoir
+        :param r: dim_reservoir
+        :param error: dim_out
+        :return: delta weights, new P
+        """
 
-    def train_target_regression(self, data_in: np.ndarray, data_target: np.ndarray):
-        # data_in has shape (n, dim_system), n is the number of timesteps
-        R = np.zeros((self.dim_reservoir, data_in.shape[0]))
+        Pr = np.dot(P, r)
+        rPr = np.dot(r.T, Pr).squeeze()
+        c = float(1.0 / (1.0 + rPr))
+        P = P - c * np.outer(Pr, Pr)
+
+        dw = -c * np.outer(error, Pr)
+
+        return dw, P
+
+    def _compute_error(self, data_target: np.ndarray):
+        return self.r_out - data_target
+
+    def train_rls(self, data_in: np.ndarray, data_target: np.ndarray):
+        """
+        The variables have the shape (t, dim_system), t is the number of timesteps.
+        :param data_in: Reservoir input
+        :param data_target: Target data
+        :return:
+        """
         for i in range(data_in.shape[0]):
-            self.advance_r_state(data_in[i])
-            R[:, i] = self.r_state
+            self.step(data_in[i])
 
-        self.W_out = RCNetwork._linear_regression(R, data_target)
+            dw, P_new = RCNetwork._rls(P=self.P, r=self.r_reservoir, error=self._compute_error(data_target[i]))
+            # update readout
+            self.W_out += dw
+            self.P = P_new
 
-    def predict_target(self, data_in: np.ndarray):
-        prediction = np.zeros((data_in.shape[0], self.dim_system))
+    def predict(self, data_in: np.ndarray):
+        prediction = np.zeros((data_in.shape[0], self.dim_out))
         for i in range(data_in.shape[0]):
-            self.advance_r_state(data_in[i])
-            prediction[i] = self.v()
+            self.step(data_in[i])
+            prediction[i] = self.r_out
         return prediction
