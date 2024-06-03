@@ -2,13 +2,7 @@ import numpy as np
 import networkx as nx
 
 
-def sigmoid(x):
-    return np.where(x >= 0,
-                    1 / (1 + np.exp(-x)),
-                    np.exp(x) / (1 + np.exp(x)))
-
-
-def generate_adjacency_matrix(dim_reservoir: int, rho: float, sigma: float):
+def generate_adjacency_matrix(dim_reservoir: int, rho: float, sigma: float, weights: str = 'normal'):
     """
     Generates a sparse adjacency matrix based on the Erdős–Rényi model
 
@@ -22,7 +16,11 @@ def generate_adjacency_matrix(dim_reservoir: int, rho: float, sigma: float):
     graph = nx.to_numpy_array(graph)
 
     # Ensure random_array is of the same shape as the graph adjacency matrix.
-    random_array = 2 * (np.random.rand(dim_reservoir, dim_reservoir) - 0.5)
+    if weights == 'normal':
+        random_array = np.random.normal(loc=0, scale=np.sqrt(1/(sigma * dim_reservoir)), size=(dim_reservoir, dim_reservoir))
+    # else Uniform
+    else:
+        random_array = np.random.uniform(-1, 1, size=(dim_reservoir, dim_reservoir))
 
     # Multiply graph adjacency matrix with random values.
     rescaled = graph * random_array
@@ -46,17 +44,18 @@ class RCNetwork:
                  dim_reservoir: int,
                  dim_in: int,
                  dim_out: int,
-                 alpha: float = 0.1,
-                 rho: float = 1.1,
-                 sigma: float = 0.1):
+                 alpha: float = 0.2,
+                 rho: float = 1.2,
+                 sigma_rec: float = 0.2,
+                 sigma_in: float = 2.0):
 
         # initialize reservoir
         self.dim_out = dim_out
         self.dim_reservoir = dim_reservoir
 
         # initialize weights
-        self.W_rec = generate_adjacency_matrix(dim_reservoir, rho, sigma)
-        self.W_in = 2 * sigma * (np.random.rand(dim_reservoir, dim_in) - .5)
+        self.W_rec = generate_adjacency_matrix(dim_reservoir, rho, sigma_rec)
+        self.W_in = sigma_in * np.random.uniform(-1, 1, size=(dim_reservoir, dim_in))
         self.W_out = np.zeros((dim_out, dim_reservoir))
 
         # "firing rates"
@@ -66,7 +65,7 @@ class RCNetwork:
         self.P = np.eye(dim_reservoir) / alpha
 
     def advance_in(self, data_in: np.ndarray):
-        self.r_reservoir = sigmoid(np.dot(self.W_rec, self.r_reservoir) + np.dot(self.W_in, data_in))
+        self.r_reservoir = np.tanh(np.dot(self.W_rec, self.r_reservoir) + np.dot(self.W_in, data_in))
 
     def advance_out(self):
         self.r_out = np.dot(self.W_out, self.r_reservoir)

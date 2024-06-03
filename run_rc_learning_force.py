@@ -14,6 +14,7 @@ def RCTraining(ArmModel: PlanarArms,
                ReservoirModel: RCNetwork,
                N_trials: int,
                simID: int,
+               number_movements_test: int,
                arm: str | None,
                min_movement_time: int = 50,
                max_movement_time: int = 250,
@@ -59,7 +60,8 @@ def RCTraining(ArmModel: PlanarArms,
 
     # Testing
     print("Test Reservoir")
-    ArmModel.move_randomly(arm=arm, t_min=min_movement_time, t_max=max_movement_time, t_wait=learn_delta+1)
+    for _ in range(number_movements_test):
+        ArmModel.move_randomly(arm=arm, t_min=min_movement_time, t_max=max_movement_time, t_wait=learn_delta+1)
 
     if arm == 'right':
         input_gradient = ArmModel.trajectory_gradient_right
@@ -123,4 +125,5 @@ if __name__ == '__main__':
                simID=simID,
                noise=0.0,
                arm=moving_arm,
+               number_movements_test=2,
                do_plot=True)
