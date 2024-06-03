@@ -9,7 +9,8 @@ def generate_adjacency_matrix(dim_reservoir: int, rho: float, sigma: float, weig
     :param dim_reservoir: The number of nodes
     :param rho: Scaling of recurrent nodes
     :param sigma: Probability for edge creation
-    :return:
+    :param weights: Distribution for weight initialization. If not normal, then it is uniform
+    :return: Weight matrix
     """
 
     graph = nx.gnp_random_graph(dim_reservoir, sigma)
@@ -45,9 +46,9 @@ class RCNetwork:
                  dim_in: int,
                  dim_out: int,
                  alpha: float = 0.2,
-                 rho: float = 1.2,
-                 sigma_rec: float = 0.2,
-                 sigma_in: float = 2.0):
+                 rho: float = 1.1,
+                 sigma_rec: float = 0.1,
+                 sigma_in: float = 10.0):
 
         # initialize reservoir
         self.dim_out = dim_out
