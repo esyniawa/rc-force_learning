@@ -45,8 +45,8 @@ class RCNetwork:
                  dim_reservoir: int,
                  dim_in: int,
                  dim_out: int,
-                 alpha: float = 0.2,
-                 rho: float = 1.1,
+                 alpha: float = 0.1,
+                 rho: float = 1.2,
                  sigma_rec: float = 0.1,
                  sigma_in: float = 10.0):
 
