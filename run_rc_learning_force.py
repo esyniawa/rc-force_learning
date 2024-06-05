@@ -20,21 +20,28 @@ def RCTraining(ArmModel: PlanarArms,
                max_movement_time: int = 250,
                learn_delta: int = 5,
                noise: float = 0.0,
+               save_trajectories: bool = False,
                do_plot: bool = False):
 
     if arm is None:
         arm = np.random.choice(['left', 'right'])
 
-    trajectory_folder = "trajectories/"
+
     # Training
     print("Motor babbling")
     for trial in range(N_trials):
 
-        ArmModel.move_randomly(arm=arm,
-                               t_min=min_movement_time,
-                               t_max=max_movement_time,
-                               t_wait=learn_delta+1,
-                               trajectory_save_name=trajectory_folder + f"sim_{simID}/run_{trial}")
+        if save_trajectories:
+            ArmModel.move_randomly(arm=arm,
+                                   t_min=min_movement_time,
+                                   t_max=max_movement_time,
+                                   t_wait=learn_delta+1,
+                                   trajectory_save_name=f"trajectories/sim_{simID}/run_{trial}")
+        else:
+            ArmModel.move_randomly(arm=arm,
+                                   t_min=min_movement_time,
+                                   t_max=max_movement_time,
+                                   t_wait=learn_delta+1)
 
         if arm == 'right':
             input_gradient = np.array(ArmModel.trajectory_gradient_right)
@@ -125,5 +132,5 @@ if __name__ == '__main__':
                simID=simID,
                noise=0.0,
                arm=moving_arm,
-               number_movements_test=2,
+               number_movements_test=5,
                do_plot=True)

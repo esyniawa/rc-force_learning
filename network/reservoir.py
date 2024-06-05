@@ -75,6 +75,9 @@ class RCNetwork:
         self.advance_in(data_in=data_in)
         self.advance_out()
 
+    def reset_reservoir(self):
+        self.r_reservoir = np.zeros(self.dim_reservoir)
+
     @staticmethod
     def _rls(P, r, error):
         """
@@ -96,11 +99,13 @@ class RCNetwork:
     def _compute_error(self, data_target: np.ndarray):
         return self.r_out - data_target
 
-    def train_rls(self, data_in: np.ndarray, data_target: np.ndarray):
+    def train_rls(self, data_in: np.ndarray, data_target: np.ndarray, do_reset: bool = True):
         """
+
         The variables have the shape (t, dim_system), t is the number of timesteps.
         :param data_in: Reservoir input
         :param data_target: Target data
+        :param do_reset: reset reservoir activity
         :return:
         """
         for i in range(data_in.shape[0]):
@@ -111,9 +116,17 @@ class RCNetwork:
             self.W_out += dw
             self.P = P_new
 
-    def predict(self, data_in: np.ndarray):
+            if do_reset:
+                self.reset_reservoir()
+
+
+    def predict(self, data_in: np.ndarray, do_reset: bool = True):
         prediction = np.zeros((data_in.shape[0], self.dim_out))
         for i in range(data_in.shape[0]):
             self.step(data_in[i])
             prediction[i] = self.r_out
+
+            if do_reset:
+                self.reset_reservoir()
+
         return prediction
