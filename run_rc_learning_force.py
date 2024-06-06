@@ -12,14 +12,16 @@ from utils import cumulative_sum, safe_save
 
 def RCTraining(ArmModel: PlanarArms,
                ReservoirModel: RCNetwork,
-               N_trials: int,
+               N_trials_training: int,
+               N_trials_test: int,
                simID: int,
-               number_movements_test: int,
                arm: str | None,
-               min_movement_time: int = 50,
-               max_movement_time: int = 250,
+               min_movement_time: int = 100,
+               max_movement_time: int = 200,
+               scale_input: float = 10.,
+               scale_targets: float = 1.,
                learn_delta: int = 5,
-               noise: float = 0.0,
+               noise: float = 0.01,
                save_trajectories: bool = False,
                do_plot: bool = False):
 
@@ -29,7 +31,7 @@ def RCTraining(ArmModel: PlanarArms,
 
     # Training
     print("Motor babbling")
-    for trial in range(N_trials):
+    for trial in range(N_trials_training):
 
         if save_trajectories:
             ArmModel.move_randomly(arm=arm,
@@ -63,11 +65,11 @@ def RCTraining(ArmModel: PlanarArms,
 
     # train reservoir based on input and target
     print("Train Reservoir")
-    ReservoirModel.train_rls(data_in=inputs, data_target=targets)
+    ReservoirModel.train_rls(data_in=inputs * scale_input, data_target=targets * scale_targets)
 
     # Testing
     print("Test Reservoir")
-    for _ in range(number_movements_test):
+    for _ in range(N_trials_test):
         ArmModel.move_randomly(arm=arm, t_min=min_movement_time, t_max=max_movement_time, t_wait=learn_delta+1)
 
     if arm == 'right':
@@ -75,13 +77,13 @@ def RCTraining(ArmModel: PlanarArms,
     else:
         input_gradient = ArmModel.trajectory_gradient_left
 
-    # ReservoirModel.advance_r_state(input_gradient[0])
-    prediction = ReservoirModel.predict(data_in=np.array(input_gradient)[:-learn_delta])
+    results_folder = "results/"
+    prediction = ReservoirModel.predict(data_in=np.array(input_gradient)[:-learn_delta],
+                                        save_folder=results_folder)
     target_test = ArmModel.calc_gradients(arm=arm, delta_t=learn_delta)
 
     mse = ((target_test - prediction) ** 2).mean()
 
-    results_folder = "results/"
     if do_plot:
         if arm == 'right':
             traj_prediction = np.concatenate((prediction,
@@ -109,9 +111,6 @@ def RCTraining(ArmModel: PlanarArms,
 
         # save
         safe_save(results_folder + f"sim_{simID}/mse.npy", mse)
-        safe_save(results_folder + f"sim_{simID}/w_in.npy", reservoir.W_in)
-        safe_save(results_folder + f"sim_{simID}/w_out.npy", reservoir.W_out)
-        safe_save(results_folder + f"sim_{simID}/w_rec.npy", reservoir.W_rec)
 
     return ReservoirModel
 
@@ -129,9 +128,9 @@ if __name__ == '__main__':
     # run training
     RCTraining(ArmModel=arms,
                ReservoirModel=reservoir,
-               N_trials=N_trials,
+               N_trials_training=N_trials,
                simID=simID,
                noise=0.0,
                arm=moving_arm,
-               number_movements_test=5,
+               N_trials_test=5,
                do_plot=True)

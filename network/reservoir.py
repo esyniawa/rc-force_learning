@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 
+from utils import safe_save
 
 def generate_adjacency_matrix(dim_reservoir: int, rho: float, sigma: float, weights: str = 'normal'):
     """
@@ -48,7 +49,7 @@ class RCNetwork:
                  alpha: float = 0.1,
                  rho: float = 1.2,
                  sigma_rec: float = 0.1,
-                 sigma_in: float = 10.0):
+                 sigma_in: float = 1.0):
 
         # initialize reservoir
         self.dim_out = dim_out
@@ -119,8 +120,14 @@ class RCNetwork:
             if do_reset:
                 self.reset_reservoir()
 
+    def predict(self,
+                data_in: np.ndarray,
+                save_folder: str | None = None,
+                do_reset: bool = True):
 
-    def predict(self, data_in: np.ndarray, do_reset: bool = True):
+        if save_folder is not None:
+            res_activities = np.zeros((data_in.shape[0], self.dim_reservoir))
+
         prediction = np.zeros((data_in.shape[0], self.dim_out))
         for i in range(data_in.shape[0]):
             self.step(data_in[i])
@@ -128,5 +135,12 @@ class RCNetwork:
 
             if do_reset:
                 self.reset_reservoir()
+
+            if save_folder is not None:
+               res_activities[i, :] = self.r_reservoir
+
+        if save_folder is not None:
+            safe_save(save_folder + 'rReservoir.npy', array=res_activities)
+            safe_save(save_folder + 'wReadout.npy', array=self.W_out)
 
         return prediction
