@@ -102,7 +102,6 @@ class RCNetwork:
 
     def train_rls(self, data_in: np.ndarray, data_target: np.ndarray, do_reset: bool = True):
         """
-
         The variables have the shape (t, dim_system), t is the number of timesteps.
         :param data_in: Reservoir input
         :param data_target: Target data
@@ -117,8 +116,8 @@ class RCNetwork:
             self.W_out += dw
             self.P = P_new
 
-            if do_reset:
-                self.reset_reservoir()
+        if do_reset:
+            self.reset_reservoir()
 
     def predict(self,
                 data_in: np.ndarray,
@@ -133,11 +132,11 @@ class RCNetwork:
             self.step(data_in[i])
             prediction[i] = self.r_out
 
-            if do_reset:
-                self.reset_reservoir()
-
             if save_folder is not None:
                res_activities[i, :] = self.r_reservoir
+
+        if do_reset:
+            self.reset_reservoir()
 
         if save_folder is not None:
             safe_save(save_folder + 'rReservoir.npy', array=res_activities)
