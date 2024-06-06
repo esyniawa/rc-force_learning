@@ -57,7 +57,6 @@ def RCTraining(ArmModel: PlanarArms,
         targets = ArmModel.calc_gradients(arm=arm, delta_t=learn_delta)
 
         # train reservoir based on input and target
-        print("Train Reservoir")
         ReservoirModel.train_rls(data_in=inputs * scale_input, data_target=targets * scale_targets, do_reset=True)
 
         # reset trajectories
