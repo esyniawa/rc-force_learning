@@ -64,46 +64,42 @@ def RCTraining(ArmModel: PlanarArms,
 
     # Testing
     print("Test Reservoir")
-    predictions = np.array()
-    target_test = np.array()
-    for _ in range(N_trials_test):
+    for trial in range(N_trials_test):
         ArmModel.move_randomly(arm=arm, t_min=min_movement_time, t_max=max_movement_time, t_wait=learn_delta+1)
 
         if arm == 'right':
             input_gradient = ArmModel.trajectory_gradient_right
+
         else:
             input_gradient = ArmModel.trajectory_gradient_left
 
         results_folder = "results/"
 
-        predictions = np.concatenate((predictions,
-                                      ReservoirModel.predict(data_in=np.array(input_gradient)[:-learn_delta] * scale_input)),
-                                     axis=None)
-        target_test = np.concatenate((target_test,
-                                      ArmModel.calc_gradients(arm=arm, delta_t=learn_delta) * scale_targets),
-                                     axis=None)
+        # output RC
+        prediction = ReservoirModel.predict(data_in=np.array(input_gradient) * scale_input)
 
-    mse = ((target_test - predictions) ** 2).mean()
+        if trial == 0:
+            predictions = prediction
+        else:
+            predictions = np.concatenate((predictions, prediction), axis=0)
+        # reset gradients
+        ArmModel.clear_gradients()
+
+    target_tests = ArmModel.calc_gradients(arm=arm, delta_t=learn_delta, keep_dim=True) * scale_targets
+    mse = ((target_tests - predictions) ** 2).mean()
+    print(predictions.shape, target_tests.shape)
 
     if do_plot:
         if arm == 'right':
-            traj_prediction = np.concatenate((predictions,
-                                              np.zeros((len(ArmModel.end_effector_right) - predictions.shape[0], 2))),
-                                             axis=0)
-
-            ArmModel.plot_trajectory(dynamic_points=traj_prediction + np.array(ArmModel.end_effector_right),
+            ArmModel.plot_trajectory(dynamic_points=predictions + np.array(ArmModel.end_effector_right),
                                      save_name=results_folder + f"sim_{simID}/prediction_trajectory.gif")
         else:
-            traj_prediction = np.concatenate((predictions,
-                                              np.zeros((len(ArmModel.end_effector_left) - prediction.shape[0], 2))),
-                                             axis=0)
-
-            ArmModel.plot_trajectory(dynamic_points=traj_prediction + np.array(ArmModel.end_effector_left),
+            ArmModel.plot_trajectory(dynamic_points=predictions + np.array(ArmModel.end_effector_left),
                                      save_name=results_folder + f"sim_{simID}/prediction_trajectory.gif")
 
         fig, ax = plt.subplots()
         ax.plot(predictions, color='r')
-        ax.plot(target_test, color='b')
+        ax.plot(target_tests, color='b')
         plt.savefig(results_folder + f"sim_{simID}/prediction_target.png")
         plt.close(fig)
 

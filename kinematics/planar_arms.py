@@ -84,6 +84,17 @@ class PlanarArms:
         self.gradient_end_effector_left = [self.gradient_end_effector_left[-1]]
         self.gradient_end_effector_right = [self.gradient_end_effector_right[-1]]
 
+    def clear_gradients(self):
+        """
+        Clears gradients to the last state.
+        :return: None
+        """
+        self.trajectory_gradient_left = []
+        self.trajectory_gradient_right = []
+
+        self.gradient_end_effector_left = []
+        self.gradient_end_effector_right = []
+
     @staticmethod
     def __circular_wrap(x: float, x_min: int | float, x_max: int | float):
         # Calculate the range of the interval
@@ -663,11 +674,16 @@ class PlanarArms:
             ani.save(save_name, writer=writer)
             plt.close(fig)
 
-    def calc_gradients(self, arm: str, delta_t: int) -> np.ndarray:
+    def calc_gradients(self, arm: str, delta_t: int, keep_dim: bool = False) -> np.ndarray:
         if arm == 'right':
-            return np.array(self.end_effector_right[delta_t:]) - np.array(self.end_effector_right[:-delta_t])
+            ret = np.array(self.end_effector_right[delta_t:]) - np.array(self.end_effector_right[:-delta_t])
         else:
-            return np.array(self.end_effector_left[delta_t:]) - np.array(self.end_effector_left[:-delta_t])
+            ret = np.array(self.end_effector_left[delta_t:]) - np.array(self.end_effector_left[:-delta_t])
+
+        if keep_dim:
+            return np.concatenate((ret, np.zeros((delta_t, 2))), axis=0)
+        else:
+            return ret
 
     @staticmethod
     def calc_motor_vector(init_pos: np.ndarray[float, float], end_pos: np.ndarray[float, float],
