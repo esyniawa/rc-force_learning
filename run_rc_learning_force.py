@@ -10,6 +10,18 @@ from network.reservoir import RCNetwork
 from utils import cumulative_sum, safe_save
 
 from pybads.bads import BADS
+from contextlib import contextmanager
+
+# supress standard output
+@contextmanager
+def suppress_stdout():
+    with open(os.devnull, "w") as devnull:
+        old_stdout = sys.stdout
+        sys.stdout = devnull
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
 
 def RCTraining(ArmModel: PlanarArms,
                ReservoirModel: RCNetwork,
@@ -31,7 +43,6 @@ def RCTraining(ArmModel: PlanarArms,
 
 
     # Training
-    print("Motor babbling")
     for trial in range(N_trials_training):
 
         if save_trajectories:
@@ -64,7 +75,6 @@ def RCTraining(ArmModel: PlanarArms,
         ArmModel.clear()
 
     # Testing
-    print("Test Reservoir")
     for trial in range(N_trials_test):
         ArmModel.move_randomly(arm=arm, t_min=min_movement_time, t_max=max_movement_time, t_wait=learn_delta+1)
 
@@ -102,8 +112,6 @@ def RCTraining(ArmModel: PlanarArms,
         ax.plot(target_tests, color='b')
         plt.savefig(results_folder + f"sim_{simID}/prediction_target.png")
         plt.close(fig)
-
-    print(f'Test MSE = {mse:.4f}')
 
     return mse
 
@@ -150,4 +158,5 @@ def fit_force_training(simID: int,
 if __name__ == '__main__':
 
     simID, N_trials = int(sys.argv[1]), int(sys.argv[2])
-    fit_force_training(simID=simID, N_trial_training=N_trials)
+    with suppress_stdout():
+        fit_force_training(simID=simID, N_trial_training=N_trials)
