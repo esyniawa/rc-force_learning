@@ -9,6 +9,7 @@ from kinematics.planar_arms import PlanarArms
 from network.reservoir import RCNetwork
 from utils import cumulative_sum, safe_save
 
+from pybads.bads import BADS
 
 def RCTraining(ArmModel: PlanarArms,
                ReservoirModel: RCNetwork,
@@ -87,7 +88,6 @@ def RCTraining(ArmModel: PlanarArms,
 
     target_tests = ArmModel.calc_gradients(arm=arm, delta_t=learn_delta, keep_dim=True) * scale_targets
     mse = ((target_tests - predictions) ** 2).mean()
-    print(predictions.shape, target_tests.shape)
 
     if do_plot:
         if arm == 'right':
@@ -103,31 +103,51 @@ def RCTraining(ArmModel: PlanarArms,
         plt.savefig(results_folder + f"sim_{simID}/prediction_target.png")
         plt.close(fig)
 
-    else:
-        # save
-        safe_save(results_folder + f"sim_{simID}/mse.npy", mse)
-
     print(f'Test MSE = {mse:.4f}')
 
-    return ReservoirModel
+    return mse
+
+
+def fit_force_training(simID: int,
+                       N_trial_training: int,
+                       noise: float = 0.0,
+                       moving_arm: str = 'right'):
+
+    arms = PlanarArms(init_angles_left=np.array((20, 20)), init_angles_right=np.array((20, 20)), radians=False)
+
+    def loss_function(res_params):
+
+        dim_res, sigma_rec, rho, alpha, scale_in = res_params
+
+        reservoir = RCNetwork(dim_reservoir=int(dim_res),
+                              dim_in=2, dim_out=2,
+                              sigma_rec=sigma_rec, rho=rho, alpha=alpha)
+
+        fitting_error = RCTraining(ArmModel=arms,
+                                   ReservoirModel=reservoir,
+                                   N_trials_training=N_trial_training, simID=simID,
+                                   noise=noise,
+                                   arm=moving_arm,
+                                   N_trials_test=15,
+                                   scale_input=scale_in,
+                                   do_plot=False)
+
+        return fitting_error
+
+    init_params = 1000, 0.2, 1.2, 0.2, 10.
+    target = loss_function
+
+    bads = BADS(target, np.array(init_params),
+                lower_bounds=np.array((100, 0.05, 0.8, 0.01, 1.0)),
+                upper_bounds=np.array((5000, 1.0, 2.0, 1.0, 500.0)))
+
+    optimize_result = bads.optimize()
+    fitted_params = optimize_result['x']
+
+    safe_save(f'results/fit_run_{simID}/fitted_params.npy', fitted_params)
 
 
 if __name__ == '__main__':
 
     simID, N_trials = int(sys.argv[1]), int(sys.argv[2])
-    moving_arm = 'right'
-
-    arms = PlanarArms(init_angles_left=np.array((20, 20)), init_angles_right=np.array((20, 20)), radians=False)
-    reservoir = RCNetwork(dim_reservoir=1000,
-                          dim_in=2, dim_out=2,
-                          sigma_rec=0.2, rho=1.5, alpha=0.2)
-
-    # run training
-    RCTraining(ArmModel=arms,
-               ReservoirModel=reservoir,
-               N_trials_training=N_trials,
-               simID=simID,
-               noise=0.0,
-               arm=moving_arm,
-               N_trials_test=5,
-               do_plot=True)
+    fit_force_training(simID=simID, N_trial_training=N_trials)
