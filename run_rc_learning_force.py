@@ -154,9 +154,28 @@ def fit_force_training(simID: int,
 
     safe_save(f'results/fit_run_{simID}/fitted_params.npy', fitted_params)
 
+def run_force_training(simID: int,
+                       N_trial_training: int,
+                       noise: float = 0.0,
+                       moving_arm: str = 'right'):
+
+    arms = PlanarArms(init_angles_left=np.array((20, 20)), init_angles_right=np.array((20, 20)), radians=False)
+
+    reservoir = RCNetwork(dim_reservoir=1000,
+                          dim_in=2, dim_out=2,
+                          sigma_rec=0.2, rho=1.4, alpha=0.1)
+
+    RCTraining(ArmModel=arms,
+               ReservoirModel=reservoir,
+               N_trials_training=N_trial_training, simID=simID,
+               noise=noise,
+               arm=moving_arm,
+               N_trials_test=15,
+               scale_input=5.0,
+               do_plot=True)
 
 if __name__ == '__main__':
 
     simID, N_trials = int(sys.argv[1]), int(sys.argv[2])
-    with suppress_stdout():
-        fit_force_training(simID=simID, N_trial_training=N_trials)
+
+    run_force_training(simID=simID, N_trial_training=N_trials)

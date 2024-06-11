@@ -64,7 +64,7 @@ class RCNetwork:
         self.r_reservoir = np.zeros(dim_reservoir)
         self.r_out = np.zeros(dim_out)
 
-        self.P = np.eye(dim_reservoir) / alpha
+        self.P = np.array([np.eye(dim_reservoir) / alpha for _ in range(dim_out)])
 
     def advance_in(self, data_in: np.ndarray):
         self.r_reservoir = np.tanh(np.dot(self.W_rec, self.r_reservoir) + np.dot(self.W_in, data_in))
@@ -97,9 +97,6 @@ class RCNetwork:
 
         return dw, P
 
-    def _compute_error(self, data_target: np.ndarray):
-        return self.r_out - data_target
-
     def train_rls(self, data_in: np.ndarray, data_target: np.ndarray, do_reset: bool = True):
         """
         The variables have the shape (t, dim_system), t is the number of timesteps.
@@ -109,12 +106,17 @@ class RCNetwork:
         :return:
         """
         for i in range(data_in.shape[0]):
-            self.step(data_in[i])
 
-            dw, P_new = RCNetwork._rls(P=self.P, r=self.r_reservoir, error=self._compute_error(data_target[i]))
-            # update readout
-            self.W_out += dw
-            self.P = P_new
+            # simulate
+            self.step(data_in[i])
+            error = self.r_out - data_in[i]
+
+            # learning
+            for dim in range(self.dim_out):
+                dw, P_new = RCNetwork._rls(P=self.P[dim], r=self.r_reservoir, error=error[dim])
+                # update readout
+                self.W_out[dim] += np.squeeze(dw)
+                self.P[dim] = P_new
 
         if do_reset:
             self.reset_reservoir()
