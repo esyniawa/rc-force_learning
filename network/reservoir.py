@@ -3,6 +3,7 @@ import networkx as nx
 
 from utils import safe_save
 
+
 def generate_adjacency_matrix(dim_reservoir: int, rho: float, sigma: float, weights: str = 'normal'):
     """
     Generates a sparse adjacency matrix based on the Erdős–Rényi model
@@ -64,7 +65,7 @@ class RCNetwork:
         self.r_reservoir = np.zeros(dim_reservoir)
         self.r_out = np.zeros(dim_out)
 
-        self.P = np.array([np.eye(dim_reservoir) / alpha for _ in range(dim_out)])
+        self.P = [np.eye(dim_reservoir) / alpha for _ in range(dim_out)]
 
     def advance_in(self, data_in: np.ndarray):
         self.r_reservoir = np.tanh(np.dot(self.W_rec, self.r_reservoir) + np.dot(self.W_in, data_in))
@@ -109,7 +110,7 @@ class RCNetwork:
 
             # simulate
             self.step(data_in[i])
-            error = self.r_out - data_in[i]
+            error = self.r_out - data_target[i]
 
             # learning
             for dim in range(self.dim_out):

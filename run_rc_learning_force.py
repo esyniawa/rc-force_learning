@@ -163,7 +163,7 @@ def run_force_training(simID: int,
 
     reservoir = RCNetwork(dim_reservoir=1000,
                           dim_in=2, dim_out=2,
-                          sigma_rec=0.2, rho=1.4, alpha=0.1)
+                          sigma_rec=0.2, rho=1.2, alpha=0.1)
 
     RCTraining(ArmModel=arms,
                ReservoirModel=reservoir,
@@ -171,7 +171,7 @@ def run_force_training(simID: int,
                noise=noise,
                arm=moving_arm,
                N_trials_test=15,
-               scale_input=5.0,
+               scale_input=1.0,
                do_plot=True)
 
 if __name__ == '__main__':
