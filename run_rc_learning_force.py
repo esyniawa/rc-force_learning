@@ -12,6 +12,7 @@ from utils import cumulative_sum, safe_save
 from pybads.bads import BADS
 from contextlib import contextmanager
 
+
 # supress standard output
 @contextmanager
 def suppress_stdout():
@@ -22,6 +23,7 @@ def suppress_stdout():
             yield
         finally:
             sys.stdout = old_stdout
+
 
 def RCTraining(ArmModel: PlanarArms,
                ReservoirModel: RCNetwork,
@@ -93,7 +95,7 @@ def RCTraining(ArmModel: PlanarArms,
             predictions = prediction
         else:
             predictions = np.concatenate((predictions, prediction), axis=0)
-        # reset gradients
+        # reset gradients::
         ArmModel.clear_gradients()
 
     target_tests = ArmModel.calc_gradients(arm=arm, delta_t=learn_delta, keep_dim=True) * scale_targets
@@ -154,6 +156,7 @@ def fit_force_training(simID: int,
 
     safe_save(f'results/fit_run_{simID}/fitted_params.npy', fitted_params)
 
+
 def run_force_training(simID: int,
                        N_trial_training: int,
                        noise: float = 0.0,
@@ -173,6 +176,7 @@ def run_force_training(simID: int,
                N_trials_test=15,
                scale_input=1.0,
                do_plot=True)
+
 
 if __name__ == '__main__':
 

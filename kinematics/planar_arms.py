@@ -50,9 +50,6 @@ class PlanarArms:
                                                                  thetas=self.angles_right,
                                                                  radians=True)[:, -1]]
 
-        self.gradient_end_effector_left = [np.array((0., 0.))]
-        self.gradient_end_effector_right = [np.array((0., 0.))]
-
     @staticmethod
     def check_values(angles: np.ndarray, radians: bool):
         assert angles.size == 2, "Arm must contain two angles: angle shoulder, angle elbow"
@@ -64,6 +61,18 @@ class PlanarArms:
             raise AssertionError('Check joint limits for upper arm')
         elif angles[1] <= PlanarArms.l_forearm_limit or angles[1] >= PlanarArms.u_forearm_limit:
             raise AssertionError('Check joint limits for forearm')
+
+        return angles
+
+    @staticmethod
+    def clip_values(angles: np.ndarray, radians: bool):
+        assert angles.size == 2, "Arm must contain two angles: angle shoulder, angle elbow"
+
+        if not radians:
+            angles = np.radians(angles)
+
+        angles[0] = np.clip(angles[0], a_min=PlanarArms.l_upper_arm_limit, a_max=PlanarArms.u_upper_arm_limit)
+        angles[1] = np.clip(angles[1], a_min=PlanarArms.l_forearm_limit, a_max=PlanarArms.u_forearm_limit)
 
         return angles
 
@@ -81,19 +90,13 @@ class PlanarArms:
         self.end_effector_left = [self.end_effector_left[-1]]
         self.end_effector_right = [self.end_effector_right[-1]]
 
-        self.gradient_end_effector_left = [self.gradient_end_effector_left[-1]]
-        self.gradient_end_effector_right = [self.gradient_end_effector_right[-1]]
-
     def clear_gradients(self):
         """
-        Clears gradients to the last state.
+        Clears gradients
         :return: None
         """
         self.trajectory_gradient_left = []
         self.trajectory_gradient_right = []
-
-        self.gradient_end_effector_left = []
-        self.gradient_end_effector_right = []
 
     @staticmethod
     def __circular_wrap(x: float, x_min: int | float, x_max: int | float):
@@ -133,7 +136,7 @@ class PlanarArms:
     @staticmethod
     def forward_kinematics(arm: str, thetas: np.ndarray, radians: bool = False):
 
-        theta1, theta2 = PlanarArms.check_values(thetas, radians)
+        theta1, theta2 = PlanarArms.clip_values(thetas, radians)
 
         if arm == 'right':
             const = 1
@@ -165,7 +168,7 @@ class PlanarArms:
                            end_effector: np.ndarray,
                            starting_angles: np.ndarray,
                            learning_rate: float = 0.01,
-                           max_iterations: int = 5000,
+                           max_iterations: int = 1_000,
                            abort_criteria: float = 1,  # in [mm]
                            radians: bool = False):
 
@@ -195,7 +198,7 @@ class PlanarArms:
             delta_thetas = learning_rate * np.linalg.inv(J) @ error
             thetas += delta_thetas
             # prevent phase jumps due to large errors
-            thetas = PlanarArms.circ_values(thetas, radians=True)
+            thetas = PlanarArms.clip_values(thetas, radians=True)
 
         return thetas
 
@@ -250,7 +253,7 @@ class PlanarArms:
         """
         Set the joint angle of one arm to a new joint angle without movement. Thetas = must be in degrees
         """
-        thetas = PlanarArms.check_values(thetas, radians=radians)
+        thetas = PlanarArms.clip_values(thetas, radians=radians)
         if arm == 'right':
             self.__init__(init_angles_right=thetas,
                           init_angles_left=self.trajectory_thetas_left[-1],
@@ -290,7 +293,7 @@ class PlanarArms:
         """
         Change the joint angle of one arm to a new joint angle.
         """
-        new_thetas = self.check_values(new_thetas, radians=radians)
+        new_thetas = self.clip_values(new_thetas, radians=radians)
         if arm == 'right':
 
             trajectory = self.__cos_space(start=self.angles_right, stop=new_thetas, num=num_iterations)
@@ -307,9 +310,6 @@ class PlanarArms:
                                                                              radians=True)[:, -1])
                 self.end_effector_left.append(self.end_effector_left[-1])
 
-                self.gradient_end_effector_right.append(np.array(self.end_effector_right[-1] - self.end_effector_right[-2]))
-                self.gradient_end_effector_left.append(np.array((0., 0.)))
-
                 if break_at == j:
                     break
 
@@ -318,7 +318,7 @@ class PlanarArms:
 
         elif arm == 'left':
 
-            trajectory = self.__cos_space(start=self.angles_left, stop=new_thetas, num=num_iterations)[:, -1]
+            trajectory = self.__cos_space(start=self.angles_left, stop=new_thetas, num=num_iterations)
 
             for j, delta_theta in enumerate(trajectory):
                 self.trajectory_gradient_left.append(delta_theta - self.trajectory_thetas_left[-1])
@@ -331,9 +331,6 @@ class PlanarArms:
                                                                             thetas=delta_theta,
                                                                             radians=True)[:, -1])
                 self.end_effector_right.append(self.end_effector_right[-1])
-
-                self.gradient_end_effector_left.append(np.array(self.end_effector_left[-1] - self.end_effector_left[-2]))
-                self.gradient_end_effector_right.append(np.array((0., 0.)))
 
                 if break_at == j:
                     break
@@ -378,9 +375,6 @@ class PlanarArms:
                 self.end_effector_right.append(new_pos)
                 self.end_effector_left.append(self.end_effector_left[-1])
 
-                self.gradient_end_effector_right.append(np.array(new_pos - self.end_effector_right[-2]))
-                self.gradient_end_effector_left.append(np.array((0., 0.)))
-
                 if break_at == j:
                     break
 
@@ -388,7 +382,7 @@ class PlanarArms:
             self.angles_right = self.trajectory_thetas_right[-1]
 
         elif moving_arm == 'left':
-            current_pos = self.end_effector_right[-1]
+            current_pos = self.end_effector_left[-1]
 
             angle, distance = PlanarArms.calc_motor_vector(init_pos=current_pos, end_pos=new_position,
                                                            arm=moving_arm)
@@ -411,9 +405,6 @@ class PlanarArms:
 
                 self.end_effector_left.append(new_pos)
                 self.end_effector_right.append(self.end_effector_right[-1])
-
-                self.gradient_end_effector_left.append(np.array(new_pos - self.end_effector_left[-2]))
-                self.gradient_end_effector_right.append(np.array((0., 0.)))
 
                 if break_at == j:
                     break
@@ -451,9 +442,6 @@ class PlanarArms:
             self.end_effector_right.append(self.end_effector_right[-1])
             self.end_effector_left.append(self.end_effector_left[-1])
 
-            self.gradient_end_effector_right.append(np.array((0., 0.)))
-            self.gradient_end_effector_left.append(np.array((0., 0.)))
-
     def move_randomly(self,
                       t_min: int, t_max: int, t_wait: int = 10,
                       arm: str | None = None,
@@ -489,12 +477,10 @@ class PlanarArms:
             'trajectory_left': self.trajectory_thetas_left,
             'gradients_left': self.trajectory_gradient_left,
             'end_effectors_left': self.end_effector_left,
-            'gradients_space_left': self.gradient_end_effector_left,
 
             'trajectory_right': self.trajectory_thetas_right,
             'gradients_right': self.trajectory_gradient_right,
             'end_effectors_right': self.end_effector_right,
-            'gradients_space_right': self.gradient_end_effector_right,
         }
 
         df = pd.DataFrame(d)
@@ -530,9 +516,6 @@ class PlanarArms:
 
         self.end_effector_left = df['end_effectors_left'].tolist()
         self.end_effector_right = df['end_effectors_right'].tolist()
-
-        self.gradient_end_effector_left = df['gradients_space_left'].tolist()
-        self.gradient_end_effector_right = df['gradients_space_right'].tolist()
 
     # Functions for visualisation
     def plot_current_position(self, plot_name=None, fig_size=(12, 8)):
