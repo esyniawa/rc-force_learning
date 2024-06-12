@@ -189,6 +189,10 @@ class PlanarArms:
             if np.linalg.norm(error) < abort_criteria:
                 break
 
+            # thetas[1] = 0 causes a singular matrix
+            if thetas[1] == 0:
+                thetas[1] = 1.e-6
+
             # Calculate the Jacobian matrix for the current joint angles
             J = create_jacobian(thetas=thetas, arm=arm,
                                 a_sh=PlanarArms.upper_arm_length,
@@ -198,9 +202,12 @@ class PlanarArms:
             delta_thetas = learning_rate * np.linalg.inv(J) @ error
             thetas += delta_thetas
             # prevent phase jumps due to large errors
-            thetas = PlanarArms.clip_values(thetas, radians=True)
+            thetas = PlanarArms.circ_values(thetas, radians=True)
 
-        return thetas
+        if np.linalg.norm(error) > abort_criteria * 2:
+            return starting_angles
+        else:
+            return thetas
 
     @staticmethod
     def random_theta(return_radians=True):
