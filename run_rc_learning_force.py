@@ -159,14 +159,14 @@ def fit_force_training(simID: int,
 
 def run_force_training(simID: int,
                        N_trial_training: int,
-                       noise: float = 0.0,
+                       noise: float = 0.01,
                        moving_arm: str = 'right'):
 
     arms = PlanarArms(init_angles_left=np.array((20, 20)), init_angles_right=np.array((20, 20)), radians=False)
 
     reservoir = RCNetwork(dim_reservoir=1000,
                           dim_in=2, dim_out=2,
-                          sigma_rec=0.2, rho=1.2, alpha=0.1)
+                          sigma_rec=0.1, rho=1.2, alpha=0.2)
 
     RCTraining(ArmModel=arms,
                ReservoirModel=reservoir,
@@ -174,7 +174,7 @@ def run_force_training(simID: int,
                noise=noise,
                arm=moving_arm,
                N_trials_test=15,
-               scale_input=1.0,
+               scale_input=10.0,
                do_plot=True)
 
 
