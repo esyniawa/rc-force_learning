@@ -164,7 +164,7 @@ def run_force_training(simID: int,
 
     arms = PlanarArms(init_angles_left=np.array((20, 20)), init_angles_right=np.array((20, 20)), radians=False)
 
-    reservoir = RCNetwork(dim_reservoir=1500,
+    reservoir = RCNetwork(dim_reservoir=1000,
                           dim_in=2, dim_out=2,
                           sigma_rec=0.1, rho=1.2, alpha=0.1)
 

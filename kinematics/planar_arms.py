@@ -472,7 +472,7 @@ class PlanarArms:
 
         time_interval = int(random.uniform(t_min, t_max))
 
-        self.move_to_position(arm=arm, end_effector=random_coordinate, num_iterations=time_interval)
+        self.change_position_straight(moving_arm=arm, new_position=random_coordinate, num_iterations=time_interval)
         self.wait(t_wait)
         if trajectory_save_name is not None:
             self.save_state(trajectory_save_name)
