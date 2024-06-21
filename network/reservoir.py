@@ -1,7 +1,7 @@
 import numpy as np
 import networkx as nx
 
-from utils import safe_save
+from typing import Optional
 
 
 def generate_adjacency_matrix(dim_reservoir: int, rho: float, sigma: float, weights: str = 'normal'):
@@ -25,9 +25,7 @@ def generate_adjacency_matrix(dim_reservoir: int, rho: float, sigma: float, weig
     else:
         random_array = np.random.uniform(-1, 1, size=(dim_reservoir, dim_reservoir))
 
-    # Multiply graph adjacency matrix with random values.
-    rescaled = graph * random_array
-    return scale_matrix(rescaled, rho)
+    return rho * graph * random_array
 
 
 def scale_matrix(W_rec: np.ndarray, rho: float):
@@ -50,55 +48,73 @@ class RCNetwork:
                  alpha: float = 0.1,
                  rho: float = 1.2,
                  sigma_rec: float = 0.1,
-                 sigma_in: float = 1.0):
+                 sigma_in: float = 1.0,
+                 feedback_connection: bool = True):
 
-        # initialize reservoir
-        self.dim_out = dim_out
+        #
         self.dim_reservoir = dim_reservoir
+        self.fb = feedback_connection
 
         # initialize weights
         self.W_rec = generate_adjacency_matrix(dim_reservoir, rho, sigma_rec)
         self.W_in = sigma_in * np.random.uniform(-1, 1, size=(dim_reservoir, dim_in))
         self.W_out = np.zeros((dim_out, dim_reservoir))
 
+        if self.fb:
+            self.W_fb = np.random.uniform(-1, 1, size=(dim_reservoir, dim_out))
+
         # "firing rates"
+        self.x_reservoir = np.zeros(dim_reservoir)
         self.r_reservoir = np.zeros(dim_reservoir)
+        self.r_in = np.zeros(dim_in)
         self.r_out = np.zeros(dim_out)
 
-        self.P = [np.eye(dim_reservoir) / alpha for _ in range(dim_out)]
+        # Force learning
+        self.error_minus = np.zeros(dim_out)
+        self.error_plus = np.zeros(dim_out)
 
-    def advance_in(self, data_in: np.ndarray):
-        self.r_reservoir = np.tanh(np.dot(self.W_rec, self.r_reservoir) + np.dot(self.W_in, data_in))
+        self.P = np.eye(dim_reservoir) / alpha
 
-    def advance_out(self):
+    def step(self, target: np.ndarray, dt: float = 1., tau: float = 10., train: bool = True):
+
+        if self.fb:
+            dxdt = (-self.x_reservoir + np.dot(self.W_rec, self.r_reservoir) +
+                    np.dot(self.W_in, self.r_in) + np.dot(self.W_fb, self.r_out)) / tau
+        else:
+            dxdt = (-self.x_reservoir + np.dot(self.W_rec, self.r_reservoir) + np.dot(self.W_in, self.r_in)) / tau
+
+        self.x_reservoir += dxdt * dt
+        self.r_reservoir = np.tanh(self.x_reservoir)
         self.r_out = np.dot(self.W_out, self.r_reservoir)
 
-    def step(self, data_in: np.ndarray):
-        self.advance_in(data_in=data_in)
-        self.advance_out()
+        if train:
+            self.error_minus = self.r_out - target
+            self._rls()
+            self.error_plus = self.r_out - target
 
-    def reset_reservoir(self):
-        self.r_reservoir = np.zeros(self.dim_reservoir)
+    def reset_state(self):
+        self.x_reservoir = np.zeros(self.x_reservoir.shape)
+        self.r_reservoir = np.zeros(self.r_reservoir.shape)
+        self.r_in = np.zeros(self.r_in.shape)
+        self.r_out = np.zeros(self.r_out.shape)
 
-    @staticmethod
-    def _rls(P, r, error):
-        """
-        :param P: dim_reservoir x dim_reservoir
-        :param r: dim_reservoir
-        :param error: dim_out
-        :return: delta weights, new P
-        """
+    def _rls(self):
 
-        Pr = np.dot(P, r)
-        rPr = np.dot(r.T, Pr).squeeze()
+        Pr = np.dot(self.P, self.r_reservoir)
+        rPr = np.dot(self.r_reservoir.T, Pr)
         c = float(1.0 / (1.0 + rPr))
-        P = P - c * np.outer(Pr, Pr)
+        self.P -= c * np.outer(Pr, Pr)
 
-        dw = -c * np.outer(error, Pr)
+        dw = -c * np.outer(self.error_minus, Pr)
+        self.W_out += dw
 
-        return dw, P
+    def run(self,
+            data_target: np.ndarray,
+            data_in: np.ndarray,
+            rls_training: bool = True,
+            do_reset: bool = True,
+            record_error: bool = False):
 
-    def train_rls(self, data_in: np.ndarray, data_target: np.ndarray, do_reset: bool = True):
         """
         The variables have the shape (t, dim_system), t is the number of timesteps.
         :param data_in: Reservoir input
@@ -106,43 +122,98 @@ class RCNetwork:
         :param do_reset: reset reservoir activity
         :return:
         """
-        for i in range(data_in.shape[0]):
+
+        # recordings
+        z = np.zeros((data_target.shape[0], self.r_out.shape[0]))
+        if record_error:
+            training_error = []
+
+        for i in range(data_target.shape[0]):
 
             # simulate
-            self.step(data_in[i])
-            error = self.r_out - data_target[i]
+            self.r_in = data_in[i]
+            self.step(target=data_target[i], train=rls_training)
+            z[i] = self.r_out
 
-            # learning
-            for dim in range(self.dim_out):
-                dw, P_new = RCNetwork._rls(P=self.P[dim], r=self.r_reservoir, error=error[dim])
-                # update readout
-                self.W_out[dim] += np.squeeze(dw)
-                self.P[dim] = P_new
+            if record_error:
+                training_error.append((self.error_minus, self.error_plus))
 
         if do_reset:
-            self.reset_reservoir()
+            self.reset_state()
+
+        if record_error:
+            return z, training_error
+        else:
+            return z
+
+    def animate_training(self,
+                         data_in: np.ndarray,
+                         data_target: np.ndarray,
+                         save_name: str | None):
+
+        from .utils import find_largest_factors
+
+        pass
 
     def predict(self,
-                data_in: np.ndarray,
-                save_folder: str | None = None,
-                do_reset: bool = True):
+                data_target: np.ndarray,
+                data_in: np.ndarray):
 
-        if save_folder is not None:
-            res_activities = np.zeros((data_in.shape[0], self.dim_reservoir))
-
-        prediction = np.zeros((data_in.shape[0], self.dim_out))
-        for i in range(data_in.shape[0]):
-            self.step(data_in[i])
-            prediction[i] = self.r_out
-
-            if save_folder is not None:
-               res_activities[i, :] = self.r_reservoir
-
-        if do_reset:
-            self.reset_reservoir()
-
-        if save_folder is not None:
-            safe_save(save_folder + 'rReservoir.npy', array=res_activities)
-            safe_save(save_folder + 'wReadout.npy', array=self.W_out)
+        prediction = self.run(data_target=data_target, data_in=data_in, rls_training=False)
 
         return prediction
+
+    @staticmethod
+    def make_dynamic_target(dim_out: int, n_periods: int, seed: Optional[int] = None):
+        """
+        Generates a dynamic target signal for the reservoir computing network.
+
+        :param dim_out: The dimensionality of the output signal.
+        :param n_periods: The number of trials for which the signal is generated.
+        :param seed: The seed for the random number generator. Default is None.
+
+        :return: A tuple containing the generated dynamic target signal (numpy array) and the period time (float).
+        """
+
+        # random period time
+        T = np.random.RandomState(seed).randint(100, 200)
+        x = np.arange(0, n_periods * T)
+
+        y = np.zeros((len(x), dim_out))
+
+        for out in range(dim_out):
+
+            a1 = np.random.RandomState(seed + out).normal(loc=0, scale=1)
+            a2 = np.random.RandomState(seed + out).normal(loc=0, scale=1)
+            a3 = np.random.RandomState(seed + out).normal(loc=0, scale=0.5)
+
+            y[:, out] = a1 * np.sin(2 * np.pi * x / T) + a2 * np.sin(4 * np.pi * x / T) + a3 * np.sin(6 * np.pi * x / T)
+
+        return y, T
+
+    def train_dynamic_target(self,
+                             n_period_train: int,
+                             n_period_test: int,
+                             do_plot: bool = False,
+                             seed: Optional[int] = None):
+
+        data_target, period = RCNetwork.make_dynamic_target(self.r_out.shape[0], n_period_train + n_period_test,
+                                                            seed=seed)
+
+        self.run(data_target=data_target[:int(n_period_train*period)], data_in=data_target[:int(n_period_train*period)], rls_training=True)
+        true_target = data_target[int(n_period_train*period):]
+        prediction = self.run(data_target=true_target, data_in=true_target, rls_training=False)
+
+        mse = ((true_target - prediction) ** 2).mean()
+
+        print(f'MSE = {mse:.4f}')
+
+        if do_plot:
+            import matplotlib.pyplot as plt
+
+            fig, ax = plt.subplots()
+            ax.plot(true_target, c='b')
+            ax.plot(prediction, c='r', alpha=0.4)
+
+            plt.show()
+            plt.close(fig)

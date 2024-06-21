@@ -664,14 +664,14 @@ class PlanarArms:
             ani.save(save_name, writer=writer)
             plt.close(fig)
 
-    def calc_gradients(self, arm: str, delta_t: int, keep_dim: bool = False) -> np.ndarray:
-        if arm == 'right':
-            ret = np.array(self.end_effector_right[delta_t:]) - np.array(self.end_effector_right[:-delta_t])
-        else:
-            ret = np.array(self.end_effector_left[delta_t:]) - np.array(self.end_effector_left[:-delta_t])
+    @staticmethod
+    def calc_gradients(array: np.ndarray, delta_t: int, keep_dim: bool = False) -> np.ndarray:
+        assert array.ndim == 2, "Array should be 2-dimensional."
+
+        ret = array[delta_t:] - array[:-delta_t]
 
         if keep_dim:
-            return np.concatenate((ret, np.zeros((delta_t, 2))), axis=0)
+            return np.concatenate((ret, np.zeros((delta_t, array.shape[1]))), axis=0)
         else:
             return ret
 
