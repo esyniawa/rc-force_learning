@@ -80,6 +80,7 @@ def run_force_training(simID: int,
                        scale_in: float = 1.0,
                        scale_out: float = 0.01,
                        noise: float = 0.0,
+                       reset_after_epoch: bool = False,
                        moving_arm: str | None = 'right',
                        do_plot: bool = False):
 
@@ -102,7 +103,7 @@ def run_force_training(simID: int,
               ReservoirModel=reservoir,
               scale_out=scale_out,
               training=True,
-              do_reset=True,
+              do_reset=reset_after_epoch,
               arm=moving_arm,
               noise=noise)
 
@@ -114,7 +115,7 @@ def run_force_training(simID: int,
             ReservoirModel=reservoir,
             scale_out=scale_out,
             training=False,
-            do_reset=True,
+            do_reset=reset_after_epoch,
             arm=moving_arm,
         )
         z_out += list(pred)
@@ -134,7 +135,7 @@ def run_force_training(simID: int,
                                  save_name=results_folder + "prediction_trajectory.gif")
 
         fig, ax = plt.subplots()
-        ax.plot(np.array(z_out), color='r', marker='x', linestyle='None')
+        ax.plot(np.array(z_out), color='r', marker=".", markersize=2, linestyle='None', alpha=0.5)
         ax.plot(np.array(t_out), color='b', alpha=0.5)
         ax.text(0.9, 0.9, f'MSE={mse:.3f}')
         plt.savefig(results_folder + "prediction_target.png")
@@ -149,5 +150,5 @@ if __name__ == '__main__':
 
     run_force_training(simID=simID,
                        N_trials_training=N_trials,
-                       N_trials_test=12,
+                       N_trials_test=20,
                        do_plot=True)
