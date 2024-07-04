@@ -33,7 +33,7 @@ def trial(ArmModel: PlanarArms,
           arm: str | None = None,
           min_movement_time: int = 180,
           max_movement_time: int = 200,
-          t_wait: int | None = None,
+          t_wait: int | None = 20,
           learn_delta: int = 10,
           noise: float = 0.0):
 
@@ -77,12 +77,13 @@ def trial(ArmModel: PlanarArms,
 def run_force_training(simID: int,
                        N_trials_training: int,
                        N_trials_test: int,
-                       scale_in: float = 1.0,
+                       scale_in: float = 50.0,
                        scale_out: float = 0.01,
                        noise: float = 0.0,
                        reset_after_epoch: bool = True,
                        moving_arm: str | None = 'right',
-                       do_plot: bool = False):
+                       do_plot: bool = False,
+                       fb_con: bool = True):
 
     # save results in...
     results_folder = f'results/run_{simID}/'
@@ -95,7 +96,8 @@ def run_force_training(simID: int,
                           sigma_rec=0.1,
                           sigma_in=scale_in,
                           rho=1.5,
-                          alpha=0.1)
+                          alpha=0.1,
+                          feedback_connection=fb_con)
 
     # Training Condition
     for _ in range(N_trials_training):
@@ -145,10 +147,18 @@ def run_force_training(simID: int,
 
 
 if __name__ == '__main__':
+    from utils import get_element_by_interval
 
     simID, N_trials = int(sys.argv[1]), int(sys.argv[2])
+    fb_con = bool(simID % 2)
+    scale_list = [2.0, 10., 50., 100., 200., 500., 1000., 2000.]
+    scale_in = get_element_by_interval(scale_list, simID, 2)
+
+    print(f'Simulation: {simID}, Feedback: {fb_con}, Input Scaling: {scale_in}')
 
     run_force_training(simID=simID,
                        N_trials_training=N_trials,
                        N_trials_test=20,
-                       do_plot=True)
+                       scale_in=scale_in,
+                       do_plot=True,
+                       fb_con=fb_con)

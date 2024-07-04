@@ -32,3 +32,11 @@ def cumulative_sum(a: np.ndarray, n: int, axis: int | None = None) -> np.ndarray
     ret = np.cumsum(a, axis=axis, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n-1:]
+
+
+def get_element_by_interval(l, a, b):
+    if not l or b <= 0:
+        return None
+
+    index = int((a - 1) // b)
+    return l[index % len(l)] if l else None

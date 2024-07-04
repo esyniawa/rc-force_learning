@@ -90,7 +90,7 @@ class RCNetwork:
         if train:
             self.error_minus = self.r_out - target
             self._rls()
-            self.error_plus = self.r_out - target
+            self.error_plus = np.dot(self.W_out, self.r_reservoir) - target
 
     def reset_state(self):
         self.x_reservoir = np.zeros(self.x_reservoir.shape)
@@ -200,20 +200,30 @@ class RCNetwork:
         data_target, period = RCNetwork.make_dynamic_target(self.r_out.shape[0], n_period_train + n_period_test,
                                                             seed=seed)
 
-        self.run(data_target=data_target[:int(n_period_train*period)], data_in=data_target[:int(n_period_train*period)], rls_training=True)
-        true_target = data_target[int(n_period_train*period):]
-        prediction = self.run(data_target=true_target, data_in=true_target, rls_training=False)
+        z_train, error = self.run(data_target=data_target[:int(n_period_train*period)],
+                                  data_in=data_target[:int(n_period_train*period)],
+                                  rls_training=True,
+                                  record_error=True)
 
-        mse = ((true_target - prediction) ** 2).mean()
+        true_target = data_target[int(n_period_train*period):]
+        z_prediction = self.run(data_target=true_target, data_in=true_target, rls_training=False)
+
+        mse = ((true_target - z_prediction) ** 2).mean()
 
         print(f'MSE = {mse:.4f}')
-
         if do_plot:
             import matplotlib.pyplot as plt
 
-            fig, ax = plt.subplots()
-            ax.plot(true_target, c='b')
-            ax.plot(prediction, c='r', alpha=0.4)
+            error = np.array(error)
 
+            z = np.concatenate((z_train, z_prediction))
+            fig, axs = plt.subplots(nrows=2)
+            axs[0].plot(data_target, c='b')
+            axs[0].plot(z, c='r', marker='.',
+                        linestyle='None', alpha=0.4)
+            axs[0].set_title('Target (blue) | Output reservoir (red)')
+            
+            axs[1].plot(error[:, 1, :] - error[:, 0, :])
+            axs[1].set_title('error_plus - error_minus')
             plt.show()
             plt.close(fig)
