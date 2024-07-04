@@ -149,7 +149,11 @@ def run_force_training(simID: int,
 if __name__ == '__main__':
     from utils import get_element_by_interval
 
+    # set seed
+    np.random.seed(42)
+
     simID, N_trials = int(sys.argv[1]), int(sys.argv[2])
+    
     fb_con = bool(simID % 2)
     scale_list = [2.0, 10., 50., 100., 200., 500., 1000., 2000.]
     scale_in = get_element_by_interval(scale_list, simID, 2)
