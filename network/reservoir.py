@@ -45,7 +45,7 @@ class RCNetwork:
                  dim_reservoir: int,
                  dim_in: int,
                  dim_out: int,
-                 alpha: float = 0.1,
+                 alpha: float = 0.2,
                  rho: float = 1.2,
                  sigma_rec: float = 0.1,
                  sigma_in: float = 1.0,
@@ -222,7 +222,7 @@ class RCNetwork:
             axs[0].plot(z, c='r', marker='.',
                         linestyle='None', alpha=0.4)
             axs[0].set_title('Target (blue) | Output reservoir (red)')
-            
+
             axs[1].plot(error[:, 1, :] - error[:, 0, :])
             axs[1].set_title('error_plus - error_minus')
             plt.show()
