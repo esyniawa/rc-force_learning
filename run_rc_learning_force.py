@@ -10,7 +10,6 @@ from kinematics.planar_arms import PlanarArms
 
 from network.reservoir import RCNetwork
 from utils import cumulative_sum, safe_save
-
 from contextlib import contextmanager
 
 
@@ -68,6 +67,9 @@ def trial(ArmModel: PlanarArms,
                                     rls_training=training,
                                     do_reset=do_reset)
 
+    # reset trajectories
+    ArmModel.clear()
+
     return prediction, targets
 
 
@@ -88,7 +90,10 @@ def run_force_training(simID: int,
 
     # save results in...
     results_folder = f'results/run_{simID}/'
+    if not os.path.exists(results_folder):
+        os.makedirs(results_folder)
 
+    # create arms
     arms = PlanarArms(init_angles_left=np.array((20, 20)), init_angles_right=np.array((20, 20)), radians=False)
 
     reservoir = RCNetwork(dim_reservoir=reservoir_dim,
@@ -153,7 +158,7 @@ if __name__ == '__main__':
 
     run_force_training(simID=simID,
                        N_trials_training=N_trials,
-                       N_trials_test=20,
+                       N_trials_test=5,
                        scale_in=scale_in,
                        do_plot=True,
                        fb_con=fb_con)
