@@ -5,6 +5,7 @@ This project uses the RLS (Recursive Least Squares) force learning rule to train
 
 ## Files Structure
 - `run_rc_learning_force.py`: Main script to run force training simulations.
+- `test_rc.py`: Test script to show that the learning rule and the reservoir definitions works.
 - `network/reservoir`: Contains the `RCNetwork` class that implement a Reservoir and the learning rule to train the weights.
 - `kinematics/planar_arms.py`: Contains the `PlanarArms` class with various methods for arm control and visualization.
 
@@ -15,6 +16,10 @@ conda env create -n [name] --file env.yml
 conda activate [name]
 ```
 2. Run `run_rc_learning_force.py` with simulation ID and number of trials as command-line arguments. The number of trials determine the number of executed movements over which the prediction is learned.
+
+```bash 
+python run_rc_learning_force.py 1 10000
+```
 
 ## `PlanarArms` Class
 - `__init__`: Initialize arm with initial angles.
@@ -46,10 +51,8 @@ conda activate [name]
 ## `RCNetwork` class
 
 - `__init__`: Initializes the network with the specified dimensions and weights for the reservoir, input, and output layers.
-- `advance_in`: Advances the network by applying the input data to the reservoir using a hyperbolic tangent activation function.
-- `advance_out`: Advances the output layer by computing the output based on the current reservoir state and output weights.
-- `step`: Combines advance_in and advance_out methods to perform a single step of processing input data.
+- `step`: Performs a given time step of the RCNetwork.
 - `reset_reservoir`: Resets the reservoir state to zeros.
-- `_rls` (static method): Implements the Recursive Least Squares algorithm to calculate delta weights and update the matrix P.
-- `train_rls`: Trains the network using the RLS algorithm by iterating over input data, computing errors, and updating weights.
+- `_rls` (static method): Implements the Recursive Least Squares algorithm to update weights and the matrix P.
+- `run`: Run the reservoir network on the given input and target data.
 - `predict`: Predicts outputs based on input data, optionally saves reservoir activities and output weights, and resets the reservoir after the epoch if specified.

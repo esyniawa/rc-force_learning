@@ -3,8 +3,6 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-# set seed
-np.random.seed(42)
 
 from kinematics.planar_arms import PlanarArms
 
@@ -146,19 +144,14 @@ def run_force_training(simID: int,
 
 
 if __name__ == '__main__':
-    from utils import get_element_by_interval
 
     simID, N_trials = int(sys.argv[1]), int(sys.argv[2])
 
-    fb_con = bool(simID % 2)
-    scale_list = [2.0, 10., 50., 100., 200., 500., 1000., 2000.]
-    scale_in = get_element_by_interval(scale_list, simID, 2)
-
-    print(f'Simulation: {simID}, Feedback: {fb_con}, Input Scaling: {scale_in}')
+    print(f'Simulation: {simID}')
 
     run_force_training(simID=simID,
                        N_trials_training=N_trials,
                        N_trials_test=16,
-                       scale_in=scale_in,
+                       scale_in=10.0,
                        do_plot=True,
-                       fb_con=fb_con)
+                       fb_con=False)

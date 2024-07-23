@@ -51,7 +51,35 @@ class RCNetwork:
                  sigma_in: float = 1.0,
                  feedback_connection: bool = True):
 
-        #
+        """
+        Initializes a Reservoir Computing (RC) network.
+
+        Args:
+            dim_reservoir (int): The number of nodes in the reservoir.
+            dim_in (int): The number of input nodes.
+            dim_out (int): The number of output nodes.
+            alpha (float, optional): The learning rate for the RC network. Defaults to 0.2.
+            rho (float, optional): The scaling or choas factor for recurrent nodes. Defaults to 1.2.
+            sigma_rec (float, optional): The probability for edge creation in the reservoir. Defaults to 0.1.
+            sigma_in (float, optional): The scaling factor for input weights. Defaults to 1.0.
+            feedback_connection (bool, optional): Whether to include feedback connections from output to reservoir. Defaults to True.
+
+        Initializes the RC network with the specified dimensions and weights for the reservoir, input, and output layers.
+        The weights are initialized using the `generate_adjacency_matrix` function.
+
+        If `feedback_connection` is True, also initializes feedback weights using random uniform distribution.
+
+        Initializes the "firing rates" for the reservoir, input, and output nodes.
+
+        Initializes the error vectors for force learning.
+
+        Initializes the matrix P for the Recursive Least Squares (RLS) algorithm with the specified alpha value.
+
+        Returns:
+            None
+        """
+
+        # parameters
         self.dim_reservoir = dim_reservoir
         self.fb = feedback_connection
 
@@ -77,6 +105,26 @@ class RCNetwork:
 
     def step(self, target: np.ndarray, dt: float = 1., tau: float = 10., train: bool = True):
 
+        """
+        Performs a given time step of the RCNetwork.
+        Args:
+            target (np.ndarray): The target output for the network.
+            dt (float, optional): The time step size. Defaults to 1.
+            tau (float, optional): The time constant for the RCNetwork. Defaults to 10.
+            train (bool, optional): Whether to train the network. Defaults to True.
+        Returns:
+            None
+        Description:
+            This function performs a single time step of the RCNetwork. It calculates the derivative of the reservoir
+            state based on the current reservoir state, input weights, and recurrent weights. It then updates the
+            reservoir state and output based on the calculated derivative and the time step size. If the `train` flag is
+            set to True, it also calculates the error between the current output and the target output, and updates
+            the weights using the `rls` method.
+        Note:
+            If the `feedback_connection` flag is set to True, the function also includes the output weights in the
+            calculation of the derivative.
+        """
+
         if self.fb:
             dxdt = (-self.x_reservoir + np.dot(self.W_rec, self.r_reservoir) +
                     np.dot(self.W_in, self.r_in) + np.dot(self.W_fb, self.r_out)) / tau
@@ -93,13 +141,25 @@ class RCNetwork:
             self.error_plus = np.dot(self.W_out, self.r_reservoir) - target
 
     def reset_state(self):
+        """
+        Resets the state of the reservoir to zero.
+
+        This function sets the state variables `x_reservoir`, `r_reservoir`, `r_in`, and `r_out` to zero.
+        """
+
         self.x_reservoir = np.zeros(self.x_reservoir.shape)
         self.r_reservoir = np.zeros(self.r_reservoir.shape)
         self.r_in = np.zeros(self.r_in.shape)
         self.r_out = np.zeros(self.r_out.shape)
 
     def _rls(self):
+        """
+        Update the weights of the reservoir using the Recursive Least Squares (RLS) algorithm.
 
+        This function calculates the projection matrix Pr, the scalar c, and the delta weight matrix dw.
+        It then updates the weights of the reservoir by subtracting dw from W_out.
+
+        """
         Pr = np.dot(self.P, self.r_reservoir)
         rPr = np.dot(self.r_reservoir.T, Pr)
         c = float(1.0 / (1.0 + rPr))
@@ -114,13 +174,20 @@ class RCNetwork:
             rls_training: bool = True,
             do_reset: bool = True,
             record_error: bool = False):
-
         """
-        The variables have the shape (t, dim_system), t is the number of timesteps.
-        :param data_in: Reservoir input
-        :param data_target: Target data
-        :param do_reset: reset reservoir activity
-        :return:
+        Run the reservoir network on the given input and target data.
+
+        Args:
+            data_target (np.ndarray): The target data of shape (t, dim_system), where t is the number of timesteps.
+            data_in (np.ndarray): The reservoir input data of shape (t, dim_system).
+            rls_training (bool, optional): Whether to perform RLS training. Defaults to True.
+            do_reset (bool, optional): Whether to reset the reservoir activity after each iteration. Defaults to True.
+            record_error (bool, optional): Whether to record the training error. Defaults to False.
+
+        Returns:
+            np.ndarray or tuple: If `record_error` is False, returns the output of the reservoir network of shape (t, dim_system).
+            If `record_error` is True, returns a tuple containing the output of the reservoir network and the training error.
+            The training error is a list of tuples, where each tuple contains the error_minus and error_plus values for each iteration.
         """
 
         # recordings
