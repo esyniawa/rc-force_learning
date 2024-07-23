@@ -158,7 +158,7 @@ if __name__ == '__main__':
 
     run_force_training(simID=simID,
                        N_trials_training=N_trials,
-                       N_trials_test=5,
+                       N_trials_test=16,
                        scale_in=scale_in,
                        do_plot=True,
                        fb_con=fb_con)
